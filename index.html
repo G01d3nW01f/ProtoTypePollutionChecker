@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>JavaScript 解析ツール</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    textarea { width: 100%; height: 200px; font-family: monospace; }
+    .section { margin-top: 2em; }
+    pre { background: #f8f8f8; padding: 1em; overflow-x: auto; }
+    h2 { border-bottom: 1px solid #ccc; }
+    input[type="file"] { margin-top: 1em; }
+    button { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>JavaScript 解析ツール（オフライン対応）</h1>
+
+  <p>JSコードを貼り付けるか、ファイルをアップロードしてください。</p>
+  <textarea id="jsInput" placeholder="// ここにコードを貼り付け"></textarea>
+  <br>
+  <input type="file" id="fileInput" accept=".js">
+  <button onclick="analyze()">解析</button>
+
+  <div class="section">
+    <h2>解析結果</h2>
+    <pre id="output"></pre>
+  </div>
+
+  <script>
+    const patterns = {
+      functions: /function\s+([a-zA-Z0-9_$]+)\s*\(|([a-zA-Z0-9_$]+)\s*=\s*\(.*?\)\s*=>/g,
+      evals: /\b(eval|Function|setTimeout|setInterval)\s*\(/g,
+      dom: /document\.(getElementById|getElementsByClassName|querySelector|write|createElement)/g,
+      network: /\b(fetch|XMLHttpRequest|axios|navigator\.sendBeacon)\b/g,
+      globals: /^[ \t]*([a-zA-Z0-9_$]+)\s*=\s*/gm,
+    };
+
+    document.getElementById('fileInput').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('jsInput').value = e.target.result;
+      };
+      reader.readAsText(file);
+    });
+
+    function analyze() {
+      const code = document.getElementById('jsInput').value;
+      const result = {};
+
+      result.functions = [...code.matchAll(patterns.functions)].map(m => m[1] || m[2]);
+      result.evals = [...code.matchAll(patterns.evals)].map(m => m[1]);
+      result.dom = [...code.matchAll(patterns.dom)].map(m => `document.${m[1]}`);
+      result.network = [...code.matchAll(patterns.network)].map(m => m[1]);
+      result.globals = [...code.matchAll(patterns.globals)].map(m => m[1]);
+
+      const out = [
+        "🔹 関数定義:",
+        ...result.functions.map(f => ` - ${f}`),
+        "\n🔹 eval, setTimeout, Function 使用:",
+        ...result.evals.map(e => ` - ${e}`),
+        "\n🔹 DOMアクセス:",
+        ...result.dom.map(d => ` - ${d}`),
+        "\n🔹 外部通信呼び出し:",
+        ...result.network.map(n => ` - ${n}`),
+        "\n🔹 グローバル変数っぽい代入:",
+        ...result.globals.map(g => ` - ${g}`),
+      ].join('\n');
+
+      document.getElementById('output').textContent = out;
+    }
+  </script>
+</body>
+</html>
+
